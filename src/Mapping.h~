@@ -1,0 +1,49 @@
+	//
+// Copyright (C) 2014 
+//
+// This program is free software; you can redistribute it and/or
+// modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; either version 2
+// of the License, or (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+//
+
+#ifndef __MAPPING_H
+#define __MAPPING_H
+
+#include <boost/unordered_map.hpp> 
+#include <boost/unordered_set.hpp>
+#include <boost/foreach.hpp>
+#include <random>
+#include <chrono>
+
+#define foreach BOOST_FOREACH
+
+class Mapping
+{
+public:
+	Mapping();
+	~Mapping();
+	typedef boost::unordered_map<unsigned int, unsigned int> map;
+	typedef boost::unordered_map<unsigned long, unsigned long> mapLong;  
+	typedef boost::unordered_set<unsigned int> set;
+	typedef boost::unordered_set<unsigned long> setLong;				
+	static void init();
+	static void mapAddress(void* buf, unsigned int len);
+			
+protected:
+	static void generateIPs(std::knuth_b generator, std::uniform_int_distribution<unsigned int> distribution);
+	static void generateMACs(std::knuth_b generator, std::uniform_int_distribution<unsigned int> distribution);
+	static void getMACs();
+};
+
+#endif // __MAPPING_H
+

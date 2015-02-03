@@ -1,0 +1,267 @@
+//
+// Copyright (C) 2014
+//
+// This program is free software; you can redistribute it and/or
+// modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; either version 2
+// of the License, or (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+//
+
+
+#include "AddressMapping.h"
+#include <iostream>
+#include <fstream>
+#include <sstream>
+
+
+static AddressMapping::map ipMap;
+static AddressMapping::mapLong macMap;
+static AddressMapping::set randomIPs;
+static AddressMapping::setLong randomMACs;
+static AddressMapping::setLong givenMACs;
+
+AddressMapping::AddressMapping ()
+{
+}
+
+AddressMapping::~AddressMapping ()
+{
+}
+
+void AddressMapping::generateIPs(std::knuth_b generator, std::uniform_int_distribution<unsigned int> distribution, int size)
+{
+	auto rndIp = std::bind ( distribution, generator );
+
+	unsigned int newip1 = 10;
+	unsigned int newip2 = 2;
+	unsigned int newip3, newip4, newip;
+	
+	newip2 <<= 8;
+
+	while(randomIPs.size() < size){
+
+		newip3 = rndIp();
+		newip4 = rndIp();
+		
+		newip3 <<= 16;
+		newip4 <<= 24;
+		newip = newip1 | newip2 | newip3 | newip4;
+		randomIPs.insert(newip);		
+	}	
+}
+
+void AddressMapping::generateMACs(std::knuth_b generator, std::uniform_int_distribution<unsigned int> distribution, int size)
+{
+	auto rndMac = std::bind ( distribution, generator );
+
+	uint64_t newmac1 = 0x12;
+	uint64_t newmac2 = 0x34;
+	uint64_t newmac3, newmac4, newmac5, newmac6;
+	
+	uint64_t newmac;
+	
+	newmac2 <<= 8;
+	
+	
+		
+	while(randomMACs.size() < size){
+		newmac3 = rdnMac();		
+		newmac4 = rndMac();		
+		newmac5 = rndMac();
+		newmac6 = rndMac();
+	
+		newmac3 <<= 16;
+		newmac4 <<= 24;
+		newmac5 <<= 32;
+		newmac6 <<= 40;
+		newmac = newmac1 | newmac2 | newmac3 | newmac4 | newmac5 | newmac6;
+		
+		randomMACs.insert(newmac);	
+	}	
+}
+
+void AddressMapping::init(string startip, int subnet, setLong* givenMacs)
+{
+	std::random_device rd;
+	auto seed = std::chrono::high_resolution_clock::now().time_since_epoch().count() + rd();
+	
+	std::knuth_b generator(seed);
+	std::uniform_int_distribution<unsigned int> distribution(0,255);
+	
+	int iprange = pow2(32 - subnet);	
+
+	generateIPs(generator, distribution, iprange);
+	generateMACs(generator, distribution, givenMacs.size());
+
+	std::istringstream iss( startip );
+	
+	uint32_t ipParts[4];
+	string ipPart = "";
+	for(int i = 0; i < 4; i++){
+		std::getline( iss, ipPart , '.' );
+		ipPart[i] = std::stol(result, nullptr, 10);
+	}
+	//IP Mapping
+	ipMapping(ipPart[0], ipPart[1], ipPart[2], ipPart[3], size);	
+	
+	//MAC Mapping
+	for(auto const mac : givenMACs) {
+	 	macMap[mac] = *randomMACs.begin();
+		randomMACs.erase(randomMACs.begin());
+	}
+	
+	/* // Debug
+	for(int i = 0; i < 25; i++){
+		ip = ip1 | ip2 | ip3 | i;
+		std::cout << "QuellIP:" << std::hex << ip << "       ZielIP: " << ipMap[ip] << std::endl;
+	}
+	int c = 0;
+	for(auto const mac : givenMACs) {
+		std::cout << "QuellMAC:" << std::hex << mac << "       ZielMAC: " << macMap[mac] << std::endl;
+		if(c > 25) break;
+		c++;
+	}*/
+	//std::cout << "AddressMapping initialisiert" << std::endl;
+}
+
+void AddressMapping::mapAddress(void* buf, unsigned int const len)
+{
+	if(len == 4){
+		unsigned int ip = *(unsigned int *)buf;
+		if(ipMap[ip]){
+			*(unsigned int *)buf = ipMap[ip];		
+		}
+	}
+	else if(len == 6){
+		uint64_t mac = *(uint64_t *)buf;
+		if(macMap[mac]){
+			*(uint64_t *)buf = macMap[mac];		
+		}
+	}
+}
+
+void AddressMapping::ipMapping(uint32_t ip1, uint32_t ip2, uint32_t ip3, uint32_t ip4, int size)
+{
+
+	ip2 <<= 8;
+	ip3 <<= 16;
+	
+	uint32_t x = ip4;
+	
+	for(int i = 0; i < size; i++){
+		wrkIp4 = x;	
+		wrkIp4 <<= 24;		
+		ip = wrkIp1 | wrkIp2 | wrkIp3 | wrkIp4;		
+		ipMap[ip] = *randomIPs.begin();
+		randomIPs.erase(randomIPs.begin());
+		x++;
+		if(x > 255){
+			ip3 >>= 16;
+			ip3++;
+			if(ip3 > 255){
+				ip2 >>= 8;
+				ip2++;
+				if(ip2 > 255){
+					ip1++;
+					ip2 = 0;
+				}
+				ip2 <<= 8
+				ip3 = 0;		
+			}
+			ip3 <<= 16;
+			x = 0;
+		}
+	}
+
+}
+
+void AddressMapping::getMACs()
+{
+	givenMACs.insert(0xEE8AA656B1F8);
+	givenMACs.insert(0xDE2DA356B1F8);
+	givenMACs.insert(0x2B26A356B1F8);
+	givenMACs.insert(0x472BA356B1F8);
+	givenMACs.insert(0x7623A356B1F8);
+	givenMACs.insert(0x982CA356B1F8);
+        givenMACs.insert(0xCA24A356B1F8);
+        givenMACs.insert(0xB524A356B1F8);
+        givenMACs.insert(0xC82CA356B1F8);
+        givenMACs.insert(0x7A2BA356B1F8);
+        givenMACs.insert(0x5A2BA356B1F8);
+        givenMACs.insert(0xBA24A356B1F8);
+        givenMACs.insert(0xA32CA356B1F8);
+        givenMACs.insert(0xD024A356B1F8);
+        givenMACs.insert(0x9724A356B1F8);
+        givenMACs.insert(0x75773C730318);
+        givenMACs.insert(0xD3909A3ACAB8);
+        givenMACs.insert(0xEC939A3ACAB8);
+        givenMACs.insert(0x69919A3ACAB8);
+        givenMACs.insert(0xE9939A3ACAB8);
+        givenMACs.insert(0x36929A3ACAB8);
+        givenMACs.insert(0xC2969A3ACAB8);
+        givenMACs.insert(0xB6959A3ACAB8);
+        givenMACs.insert(0x71949A3ACAB8);
+        givenMACs.insert(0xF0909A3ACAB8);
+        givenMACs.insert(0xCC919A3ACAB8);
+        givenMACs.insert(0x36779A3ACAB8);
+        givenMACs.insert(0x86949A3ACAB8);
+        givenMACs.insert(0x0B929A3ACAB8);
+        givenMACs.insert(0x59939A3ACAB8);
+        givenMACs.insert(0x03969A3ACAB8);
+        givenMACs.insert(0x400FA956B1F8);
+        givenMACs.insert(0xF401A956B1F8);
+        givenMACs.insert(0xEA0DA956B1F8);
+        givenMACs.insert(0xD60CA956B1F8);
+        givenMACs.insert(0xDB11A956B1F8);
+	givenMACs.insert(0x19FCA856B1F8);
+        givenMACs.insert(0x9812A956B1F8);
+        givenMACs.insert(0xBA0CA956B1F8);
+        givenMACs.insert(0xB312A956B1F8);
+        givenMACs.insert(0xB00DA956B1F8);
+        givenMACs.insert(0x580CA956B1F8);
+        givenMACs.insert(0x050BA956B1F8);
+       	givenMACs.insert(0xAE12A956B1F8);
+        givenMACs.insert(0xD212A956B1F8);
+        givenMACs.insert(0xD112A956B1F8);
+        givenMACs.insert(0x7FD624730318);
+       	givenMACs.insert(0x170524730318);
+        givenMACs.insert(0x79D924730318);
+        givenMACs.insert(0x84D824730318);
+        givenMACs.insert(0xB5D824730318);
+        givenMACs.insert(0xe70424730318);
+        givenMACs.insert(0x96D324730318);
+        givenMACs.insert(0xF7D324730318);
+        givenMACs.insert(0x94D824730318);
+        givenMACs.insert(0xD3D324730318);
+        givenMACs.insert(0x63D824730318);
+        givenMACs.insert(0x38D124730318);
+        givenMACs.insert(0xBCD724730318);
+        givenMACs.insert(0x8DD924730318);
+        givenMACs.insert(0xDF0424730318);
+        givenMACs.insert(0x9262E749F06C);
+        givenMACs.insert(0xA062E749F06C);
+        givenMACs.insert(0xA462E749F06C);
+        givenMACs.insert(0x6173E749F06C);
+        givenMACs.insert(0xE7F9E649F06C);
+        givenMACs.insert(0xFB93E749F06C);
+	givenMACs.insert(0xFD93E749F06C);
+        givenMACs.insert(0x64FF22902500);
+}
+
+int pow2(int x)
+{
+	int result = 1;
+	for(int i = 0; i < x; i++){
+		result *= 2;
+	}
+	return result
+}
